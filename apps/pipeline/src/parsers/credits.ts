@@ -26,32 +26,55 @@ const RELEVANT_CREW_JOBS = new Set([
   'Producer',
 ]);
 
-export function parseCastColumn(movieId: number, raw: string): CastMemberRow[] {
-  return (parseJsonColumn(raw) as any[])
-    .filter((c) => typeof c?.id === 'number' && typeof c?.name === 'string')
-    .slice(0, 20)
-    .map((c) => ({
-      movie_id: movieId,
-      person_id: c.id,
-      name: c.name,
-      character: c.character ?? '',
-      order: typeof c.order === 'number' ? c.order : 0,
-    }));
+interface RawCastEntry {
+  id?: unknown;
+  name?: unknown;
+  character?: unknown;
+  order?: unknown;
 }
 
-export function parseCrewColumn(movieId: number, raw: string): CrewMemberRow[] {
-  return (parseJsonColumn(raw) as any[])
-    .filter((c) => typeof c?.id === 'number' && typeof c?.name === 'string' && typeof c?.job === 'string')
-    .map((c) => ({
-      movie_id: movieId,
-      person_id: c.id,
-      name: c.name,
-      job: c.job,
-      department: c.department ?? '',
-    }));
+interface RawCrewEntry {
+  id?: unknown;
+  name?: unknown;
+  job?: unknown;
+  department?: unknown;
 }
 
-export function parseCreditsCsv(filePath: string): { cast: CastMemberRow[]; crew: CrewMemberRow[] } {
+function isCastEntry(c: RawCastEntry): c is RawCastEntry & { id: number; name: string } {
+  return typeof c?.id === 'number' && typeof c?.name === 'string';
+}
+
+function isCrewEntry(c: RawCrewEntry): c is RawCrewEntry & { id: number; name: string; job: string } {
+  return typeof c?.id === 'number' && typeof c?.name === 'string' && typeof c?.job === 'string';
+}
+
+export function parseCastColumn(movieId: number, raw: string): { cast: CastMemberRow[]; skipped: number } {
+  const entries = parseJsonColumn(raw) as RawCastEntry[];
+  const valid = entries.filter(isCastEntry);
+  const cast = valid.slice(0, 20).map((c) => ({
+    movie_id: movieId,
+    person_id: c.id,
+    name: c.name,
+    character: typeof c.character === 'string' ? c.character : '',
+    order: typeof c.order === 'number' ? c.order : 0,
+  }));
+  return { cast, skipped: entries.length - valid.length };
+}
+
+export function parseCrewColumn(movieId: number, raw: string): { crew: CrewMemberRow[]; skipped: number } {
+  const entries = parseJsonColumn(raw) as RawCrewEntry[];
+  const valid = entries.filter(isCrewEntry);
+  const crew = valid.map((c) => ({
+    movie_id: movieId,
+    person_id: c.id,
+    name: c.name,
+    job: c.job,
+    department: typeof c.department === 'string' ? c.department : '',
+  }));
+  return { crew, skipped: entries.length - valid.length };
+}
+
+export function parseCreditsCsv(filePath: string): { cast: CastMemberRow[]; crew: CrewMemberRow[]; skipped: number } {
   const raw = readFileSync(filePath, 'utf-8');
   const records = parse(raw, {
     columns: true,
@@ -61,14 +84,19 @@ export function parseCreditsCsv(filePath: string): { cast: CastMemberRow[]; crew
 
   const cast: CastMemberRow[] = [];
   const crew: CrewMemberRow[] = [];
+  let skipped = 0;
 
   for (const row of records) {
     const movieId = Number(row.id);
     if (!Number.isInteger(movieId)) continue;
 
-    cast.push(...parseCastColumn(movieId, row.cast));
-    crew.push(...parseCrewColumn(movieId, row.crew).filter((c) => RELEVANT_CREW_JOBS.has(c.job)));
+    const castResult = parseCastColumn(movieId, row.cast);
+    const crewResult = parseCrewColumn(movieId, row.crew);
+
+    cast.push(...castResult.cast);
+    crew.push(...crewResult.crew.filter((c) => RELEVANT_CREW_JOBS.has(c.job)));
+    skipped += castResult.skipped + crewResult.skipped;
   }
 
-  return { cast, crew };
+  return { cast, crew, skipped };
 }

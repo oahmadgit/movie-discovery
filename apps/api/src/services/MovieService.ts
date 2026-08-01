@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { MoviesQuery } from '../validators/schemas.js';
-import type { Pagination } from '../types/index.js';
+import type { Pagination, MovieRow, MovieListItem, MovieDetail, CastMember, CrewMember, Keyword, RatingStats } from '../types/index.js';
+import { genresForMovies } from '../repositories/genres.js';
 
 const SORT_COLUMNS: Record<string, string> = {
   title: 'm.title',
@@ -11,15 +12,10 @@ const SORT_COLUMNS: Record<string, string> = {
 
 const DETAIL_CREW_JOBS = ['Director', 'Writer', 'Screenplay', 'Director of Photography', 'Producer'];
 
-interface MovieRecord {
-  id: number;
-  [key: string]: unknown;
-}
-
 export class MovieService {
   constructor(private db: Database.Database) {}
 
-  list(query: MoviesQuery): { data: unknown[]; pagination: Pagination } {
+  list(query: MoviesQuery): { data: MovieListItem[]; pagination: Pagination } {
     const col = SORT_COLUMNS[query.sort ?? 'title'] ?? 'm.title';
     const dir = query.order === 'desc' ? 'DESC' : 'ASC';
 
@@ -47,13 +43,13 @@ export class MovieService {
 
     const rows = this.db
       .prepare(`SELECT m.* FROM movies m ${where} ORDER BY ${col} ${dir} LIMIT @limit OFFSET @offset`)
-      .all({ ...params, limit: query.limit, offset: (query.page - 1) * query.limit }) as MovieRecord[];
+      .all({ ...params, limit: query.limit, offset: (query.page - 1) * query.limit }) as MovieRow[];
 
     const { total } = this.db.prepare(`SELECT COUNT(*) as total FROM movies m ${where}`).get(params) as {
       total: number;
     };
 
-    const genresByMovie = this.genresForMovies(rows.map((r) => r.id));
+    const genresByMovie = genresForMovies(this.db, rows.map((r) => r.id));
     const data = rows.map((row) => ({ ...row, genres: genresByMovie.get(row.id) ?? [] }));
 
     return {
@@ -67,11 +63,11 @@ export class MovieService {
     };
   }
 
-  getById(id: number): unknown | null {
-    const movie = this.db.prepare('SELECT * FROM movies WHERE id = ?').get(id) as MovieRecord | undefined;
+  getById(id: number): MovieDetail | null {
+    const movie = this.db.prepare('SELECT * FROM movies WHERE id = ?').get(id) as MovieRow | undefined;
     if (!movie) return null;
 
-    const genres = this.db.prepare('SELECT genre_id, name FROM genres WHERE movie_id = ?').all(id);
+    const genres = this.db.prepare('SELECT genre_id, name FROM genres WHERE movie_id = ?').all(id) as MovieDetail['genres'];
 
     const cast = this.db
       .prepare(
@@ -79,7 +75,7 @@ export class MovieService {
          FROM cast_members WHERE movie_id = ?
          ORDER BY "order" LIMIT 20`
       )
-      .all(id);
+      .all(id) as CastMember[];
 
     const crew = this.db
       .prepare(
@@ -87,34 +83,17 @@ export class MovieService {
          FROM crew_members WHERE movie_id = ?
          AND job IN (${DETAIL_CREW_JOBS.map(() => '?').join(',')})`
       )
-      .all(id, ...DETAIL_CREW_JOBS);
+      .all(id, ...DETAIL_CREW_JOBS) as CrewMember[];
 
-    const keywords = this.db.prepare('SELECT keyword_id, name FROM keywords WHERE movie_id = ?').all(id);
+    const keywords = this.db.prepare('SELECT keyword_id, name FROM keywords WHERE movie_id = ?').all(id) as Keyword[];
 
     const ratingStats = this.db
       .prepare(
         `SELECT COUNT(*) as rating_count, ROUND(AVG(rating), 2) as avg_rating
          FROM ratings WHERE movie_id = ?`
       )
-      .get(id);
+      .get(id) as RatingStats;
 
     return { ...movie, genres, cast, crew, keywords, ratingStats };
-  }
-
-  private genresForMovies(ids: number[]): Map<number, { genre_id: number; name: string }[]> {
-    const map = new Map<number, { genre_id: number; name: string }[]>();
-    if (ids.length === 0) return map;
-
-    const placeholders = ids.map(() => '?').join(',');
-    const rows = this.db
-      .prepare(`SELECT movie_id, genre_id, name FROM genres WHERE movie_id IN (${placeholders})`)
-      .all(...ids) as { movie_id: number; genre_id: number; name: string }[];
-
-    for (const row of rows) {
-      const list = map.get(row.movie_id) ?? [];
-      list.push({ genre_id: row.genre_id, name: row.name });
-      map.set(row.movie_id, list);
-    }
-    return map;
   }
 }

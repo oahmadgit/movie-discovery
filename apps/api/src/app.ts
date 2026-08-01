@@ -18,10 +18,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use(cors());
   app.use(express.json());
 
-  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
-
+  let db: Database.Database | undefined;
   try {
-    const db = options.db ?? createDb(options.dbPath);
+    db = options.db ?? createDb(options.dbPath);
     app.use('/api/movies', moviesRouter(db));
     app.use('/api/search', searchRouter(db));
     app.use('/api/analytics', analyticsRouter(db));
@@ -29,6 +28,11 @@ export function createApp(options: CreateAppOptions = {}) {
     logger.error({ err }, 'Failed to open database');
     app.use('/api', (_req, res) => res.status(500).json({ error: 'Internal server error' }));
   }
+
+  app.get('/health', (_req, res) => {
+    if (!db) return res.status(503).json({ status: 'error', error: 'database unavailable' });
+    res.json({ status: 'ok' });
+  });
 
   app.use(errorHandler);
   return app;

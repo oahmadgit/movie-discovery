@@ -46,15 +46,10 @@ function computeFilesHash(paths: string[]): string {
   return hash.digest('hex');
 }
 
-function assertDataFilesPresent(): void {
-  const missing = Object.entries(FILES).filter(([, filePath]) => !existsSync(filePath));
-  if (missing.length > 0) {
-    logger.error(
-      { missing: missing.map(([name, filePath]) => ({ name, filePath })) },
-      'Missing required dataset file(s). Place the dataset CSVs in ./data before running the pipeline.'
-    );
-    process.exit(1);
-  }
+function missingDataFiles(): { name: string; filePath: string }[] {
+  return Object.entries(FILES)
+    .filter(([, filePath]) => !existsSync(filePath))
+    .map(([name, filePath]) => ({ name, filePath }));
 }
 
 function hasUnchangedDataset(db: Database.Database, filesHash: string): boolean {
@@ -89,7 +84,7 @@ function ingestMovies(db: Database.Database): Set<number> {
 
 function ingestCredits(db: Database.Database, validMovieIds: Set<number>): void {
   logger.info('[3/6] Parsing credits...');
-  const { cast, crew } = parseCreditsCsv(FILES.credits);
+  const { cast, crew, skipped } = parseCreditsCsv(FILES.credits);
   const validCast = cast.filter((c) => validMovieIds.has(c.movie_id));
   const validCrew = crew.filter((c) => validMovieIds.has(c.movie_id));
 
@@ -97,19 +92,22 @@ function ingestCredits(db: Database.Database, validMovieIds: Set<number>): void 
   for (const c of validCrew) upsertCrewMember(db, c);
 
   logger.info(
-    { cast: `${validCast.length}/${cast.length}`, crew: `${validCrew.length}/${crew.length}` },
+    { cast: `${validCast.length}/${cast.length}`, crew: `${validCrew.length}/${crew.length}`, malformedEntries: skipped },
     '[3/6] Credits ingested'
   );
 }
 
 function ingestKeywords(db: Database.Database, validMovieIds: Set<number>): void {
   logger.info('[4/6] Parsing keywords...');
-  const keywords = parseKeywordsCsv(FILES.keywords);
+  const { keywords, skipped } = parseKeywordsCsv(FILES.keywords);
   const validKeywords = keywords.filter((k) => validMovieIds.has(k.movie_id));
 
   for (const k of validKeywords) upsertKeyword(db, k);
 
-  logger.info({ keywords: `${validKeywords.length}/${keywords.length}` }, '[4/6] Keywords ingested');
+  logger.info(
+    { keywords: `${validKeywords.length}/${keywords.length}`, malformedEntries: skipped },
+    '[4/6] Keywords ingested'
+  );
 }
 
 function ingestRatings(db: Database.Database, validMovieIds: Set<number>, linksMap: LinksMap): void {
@@ -146,23 +144,34 @@ function runIngestion(db: Database.Database, filesHash: string): void {
   ingest();
 }
 
+function runPipeline(db: Database.Database): void {
+  const filesHash = computeFilesHash(Object.values(FILES));
+
+  if (hasUnchangedDataset(db, filesHash)) {
+    logger.info('Dataset unchanged since last run skipping ingestion.');
+    return;
+  }
+
+  const started = Date.now();
+  runIngestion(db, filesHash);
+
+  const elapsedSeconds = (Date.now() - started) / 1000;
+  logger.info({ elapsedSeconds, database: './database/movies.db' }, 'Pipeline complete');
+}
+
 function main(): void {
-  assertDataFilesPresent();
+  const missing = missingDataFiles();
+  if (missing.length > 0) {
+    logger.error(
+      { missing },
+      'Missing required dataset file(s). Place the dataset CSVs in ./data before running the pipeline.'
+    );
+    process.exit(1);
+  }
 
   const db = getDb();
   try {
-    const filesHash = computeFilesHash(Object.values(FILES));
-
-    if (hasUnchangedDataset(db, filesHash)) {
-      logger.info('Dataset unchanged since last run skipping ingestion.');
-      return;
-    }
-
-    const started = Date.now();
-    runIngestion(db, filesHash);
-
-    const elapsedSeconds = (Date.now() - started) / 1000;
-    logger.info({ elapsedSeconds, database: './database/movies.db' }, 'Pipeline complete');
+    runPipeline(db);
   } finally {
     db.close();
   }

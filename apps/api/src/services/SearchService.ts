@@ -1,14 +1,11 @@
 import type Database from 'better-sqlite3';
-
-interface MovieRecord {
-  id: number;
-  [key: string]: unknown;
-}
+import type { MovieRow, SearchResult } from '../types/index.js';
+import { genresForMovies } from '../repositories/genres.js';
 
 export class SearchService {
   constructor(private db: Database.Database) {}
 
-  search(query: string, limit = 20): unknown[] {
+  search(query: string, limit = 20): SearchResult[] {
     if (!query.trim()) return [];
 
     // Strip FTS5 operator syntax so user input can't be read as a query language.
@@ -24,27 +21,9 @@ export class SearchService {
          ORDER BY fts.rank
          LIMIT ?`
       )
-      .all(`${sanitised}*`, limit) as MovieRecord[];
+      .all(`${sanitised}*`, limit) as (MovieRow & { relevance_score: number })[];
 
-    const genresByMovie = this.genresForMovies(rows.map((r) => r.id));
+    const genresByMovie = genresForMovies(this.db, rows.map((r) => r.id));
     return rows.map((row) => ({ ...row, genres: genresByMovie.get(row.id) ?? [] }));
-  }
-
-  // Duplicated from MovieService intentionally
-  private genresForMovies(ids: number[]): Map<number, { genre_id: number; name: string }[]> {
-    const map = new Map<number, { genre_id: number; name: string }[]>();
-    if (ids.length === 0) return map;
-
-    const placeholders = ids.map(() => '?').join(',');
-    const rows = this.db
-      .prepare(`SELECT movie_id, genre_id, name FROM genres WHERE movie_id IN (${placeholders})`)
-      .all(...ids) as { movie_id: number; genre_id: number; name: string }[];
-
-    for (const row of rows) {
-      const list = map.get(row.movie_id) ?? [];
-      list.push({ genre_id: row.genre_id, name: row.name });
-      map.set(row.movie_id, list);
-    }
-    return map;
   }
 }

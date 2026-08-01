@@ -1,9 +1,10 @@
 import type Database from 'better-sqlite3';
+import type { TopGenreStat } from '../types/index.js';
 
 export class AnalyticsService {
   constructor(private db: Database.Database) {}
 
-  topGenres(): unknown[] {
+  topGenres(): TopGenreStat[] {
     return this.db
       .prepare(
         `SELECT
@@ -18,6 +19,6 @@ export class AnalyticsService {
          GROUP BY g.name, decade
          ORDER BY decade, movie_count DESC`
       )
-      .all();
+      .all() as TopGenreStat[];
   }
 }

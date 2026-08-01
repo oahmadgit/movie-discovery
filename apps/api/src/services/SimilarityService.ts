@@ -1,4 +1,6 @@
 import type Database from 'better-sqlite3';
+import type { MovieRow, SimilarMovie } from '../types/index.js';
+import { genresForMovies } from '../repositories/genres.js';
 
 function jaccardScore(a: Set<number>, b: Set<number>, weight: number): number {
   const intersection = [...a].filter((x) => b.has(x)).length;
@@ -6,22 +8,40 @@ function jaccardScore(a: Set<number>, b: Set<number>, weight: number): number {
   return union === 0 ? 0 : (intersection / union) * weight;
 }
 
+function idSetsByMovie(rows: { movie_id: number; id: number }[]): Map<number, Set<number>> {
+  const map = new Map<number, Set<number>>();
+  for (const row of rows) {
+    const set = map.get(row.movie_id) ?? new Set<number>();
+    set.add(row.id);
+    map.set(row.movie_id, set);
+  }
+  return map;
+}
+
 export class SimilarityService {
   constructor(private db: Database.Database) {}
 
-  private genreIds(movieId: number): Set<number> {
-    const rows = this.db.prepare('SELECT genre_id FROM genres WHERE movie_id = ?').all(movieId) as { genre_id: number }[];
-    return new Set(rows.map((r) => r.genre_id));
+  private genreIdsByMovie(movieIds: number[]): Map<number, Set<number>> {
+    if (movieIds.length === 0) return new Map();
+    const placeholders = movieIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(`SELECT movie_id, genre_id AS id FROM genres WHERE movie_id IN (${placeholders})`)
+      .all(...movieIds) as { movie_id: number; id: number }[];
+    return idSetsByMovie(rows);
   }
 
-  private keywordIds(movieId: number): Set<number> {
-    const rows = this.db.prepare('SELECT keyword_id FROM keywords WHERE movie_id = ?').all(movieId) as { keyword_id: number }[];
-    return new Set(rows.map((r) => r.keyword_id));
+  private keywordIdsByMovie(movieIds: number[]): Map<number, Set<number>> {
+    if (movieIds.length === 0) return new Map();
+    const placeholders = movieIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(`SELECT movie_id, keyword_id AS id FROM keywords WHERE movie_id IN (${placeholders})`)
+      .all(...movieIds) as { movie_id: number; id: number }[];
+    return idSetsByMovie(rows);
   }
 
-  getSimilar(movieId: number, limit = 10): unknown[] {
-    const sourceGenres = this.genreIds(movieId);
-    const sourceKeywords = this.keywordIds(movieId);
+  getSimilar(movieId: number, limit = 10): SimilarMovie[] {
+    const sourceGenres = this.genreIdsByMovie([movieId]).get(movieId) ?? new Set<number>();
+    const sourceKeywords = this.keywordIdsByMovie([movieId]).get(movieId) ?? new Set<number>();
     if (sourceGenres.size === 0 && sourceKeywords.size === 0) return [];
 
     const candidates = this.db
@@ -31,38 +51,25 @@ export class SimilarityService {
          WHERE g.genre_id IN (${[...sourceGenres].map(() => '?').join(',') || 'NULL'})
          AND m.id != ?`
       )
-      .all(...sourceGenres, movieId) as { id: number }[];
+      .all(...sourceGenres, movieId) as MovieRow[];
+
+    const candidateIds = candidates.map((c) => c.id);
+    const candidateGenres = this.genreIdsByMovie(candidateIds);
+    const candidateKeywords = this.keywordIdsByMovie(candidateIds);
 
     const results = candidates
       .map((c) => ({
         ...c,
         score:
-          jaccardScore(sourceGenres, this.genreIds(c.id), 0.6) +
-          jaccardScore(sourceKeywords, this.keywordIds(c.id), 0.4),
+          jaccardScore(sourceGenres, candidateGenres.get(c.id) ?? new Set(), 0.6) +
+          jaccardScore(sourceKeywords, candidateKeywords.get(c.id) ?? new Set(), 0.4),
       }))
       .filter((c) => c.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
     // MovieCard on the client assumes every result has `genres`
-    const genresByMovie = this.genresForMovies(results.map((r) => r.id));
+    const genresByMovie = genresForMovies(this.db, results.map((r) => r.id));
     return results.map((r) => ({ ...r, genres: genresByMovie.get(r.id) ?? [] }));
-  }
-
-  private genresForMovies(ids: number[]): Map<number, { genre_id: number; name: string }[]> {
-    const map = new Map<number, { genre_id: number; name: string }[]>();
-    if (ids.length === 0) return map;
-
-    const placeholders = ids.map(() => '?').join(',');
-    const rows = this.db
-      .prepare(`SELECT movie_id, genre_id, name FROM genres WHERE movie_id IN (${placeholders})`)
-      .all(...ids) as { movie_id: number; genre_id: number; name: string }[];
-
-    for (const row of rows) {
-      const list = map.get(row.movie_id) ?? [];
-      list.push({ genre_id: row.genre_id, name: row.name });
-      map.set(row.movie_id, list);
-    }
-    return map;
   }
 }
