@@ -13,6 +13,14 @@ describe('sanitiseRepr', () => {
   it('converts Python True/False to boolean literals', () => {
     expect(sanitiseRepr("{'adult': False}")).toBe('{"adult": false}');
   });
+
+  it('preserves apostrophes inside a double-quoted repr value', () => {
+    // Python's repr() switches a string's own delimiter to " when the value
+    // contains a ' — e.g. character names like "Ellis Boyd 'Red' Redding".
+    // A blind '-to-" replace would mangle the inner quotes; this must not.
+    const raw = `{'character': "Ellis Boyd 'Red' Redding"}`;
+    expect(JSON.parse(sanitiseRepr(raw))).toEqual({ character: "Ellis Boyd 'Red' Redding" });
+  });
 });
 
 describe('parseJsonColumn', () => {
