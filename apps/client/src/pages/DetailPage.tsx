@@ -2,6 +2,8 @@ import { Link, useParams } from 'react-router-dom';
 import { useMovie } from '../hooks/useMovie';
 import { useSimilar } from '../hooks/useSimilar';
 import { CastList } from '../components/CastList';
+import { CrewList } from '../components/CrewList';
+import { KeywordList } from '../components/KeywordList';
 import { SimilarMovies } from '../components/SimilarMovies';
 
 export function DetailPage() {
@@ -18,14 +20,36 @@ export function DetailPage() {
     <div className="detail-page">
       <Link to="/">&larr; Back</Link>
       <h1>
-        {movie.title} {movie.release_date && `(${movie.release_date.slice(0, 4)})`}
+        {movie.title} {movie.release_year != null && `(${movie.release_year})`}
       </h1>
-      {movie.vote_average != null && <p>★ {movie.vote_average}</p>}
+
+      <div className="detail-meta">
+        {movie.vote_average != null && <span>★ {movie.vote_average.toFixed(1)}</span>}
+        {movie.runtime != null && <span>{movie.runtime} min</span>}
+        {movie.genres.length > 0 && <span>{movie.genres.map((g) => g.name).join(', ')}</span>}
+        {movie.ratingStats.rating_count > 0 && (
+          <span>
+            {movie.ratingStats.avg_rating} avg from {movie.ratingStats.rating_count} ratings
+          </span>
+        )}
+      </div>
+
+      {movie.tagline && <p className="tagline">{movie.tagline}</p>}
       <p>{movie.overview}</p>
 
       <section>
         <h2>Cast</h2>
-        <CastList cast={(movie as any).cast ?? []} />
+        <CastList cast={movie.cast} />
+      </section>
+
+      <section>
+        <h2>Crew</h2>
+        <CrewList crew={movie.crew} />
+      </section>
+
+      <section>
+        <h2>Keywords</h2>
+        <KeywordList keywords={movie.keywords} />
       </section>
 
       <section>

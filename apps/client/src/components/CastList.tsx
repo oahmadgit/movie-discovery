@@ -1,8 +1,4 @@
-interface CastMember {
-  person_id: number;
-  name: string;
-  character: string;
-}
+import type { CastMember } from '../api/client';
 
 export function CastList({ cast }: { cast: CastMember[] }) {
   if (!cast?.length) return <p>No cast information available.</p>;
