@@ -19,7 +19,6 @@ export class SimilarityService {
     return new Set(rows.map((r) => r.keyword_id));
   }
 
-  // TODO(api): implement weighted genre+keyword Jaccard similarity per IMPLEMENTATION_PLAN.md #5.
   getSimilar(movieId: number, limit = 10): unknown[] {
     const sourceGenres = this.genreIds(movieId);
     const sourceKeywords = this.keywordIds(movieId);
@@ -34,7 +33,7 @@ export class SimilarityService {
       )
       .all(...sourceGenres, movieId) as { id: number }[];
 
-    return candidates
+    const results = candidates
       .map((c) => ({
         ...c,
         score:
@@ -44,5 +43,27 @@ export class SimilarityService {
       .filter((c) => c.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
+
+    // Every Movie-shaped API response includes `genres` (list, search); the
+    // client's MovieCard relies on it unconditionally, so this must too.
+    const genresByMovie = this.genresForMovies(results.map((r) => r.id));
+    return results.map((r) => ({ ...r, genres: genresByMovie.get(r.id) ?? [] }));
+  }
+
+  private genresForMovies(ids: number[]): Map<number, { genre_id: number; name: string }[]> {
+    const map = new Map<number, { genre_id: number; name: string }[]>();
+    if (ids.length === 0) return map;
+
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(`SELECT movie_id, genre_id, name FROM genres WHERE movie_id IN (${placeholders})`)
+      .all(...ids) as { movie_id: number; genre_id: number; name: string }[];
+
+    for (const row of rows) {
+      const list = map.get(row.movie_id) ?? [];
+      list.push({ genre_id: row.genre_id, name: row.name });
+      map.set(row.movie_id, list);
+    }
+    return map;
   }
 }
