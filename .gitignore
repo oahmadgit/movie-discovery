@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+
+# Kaggle source CSVs — not committed, pipeline reads them locally
+data/*.csv
+
+# generated database
+database/*.db
+database/*.db-journal
+
+.DS_Store
+coverage/
