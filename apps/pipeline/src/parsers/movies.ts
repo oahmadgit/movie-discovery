@@ -2,16 +2,57 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'csv-parse/sync';
 import { MovieRowSchema, type MovieRow } from '../validators/schemas.js';
 
-// Sanitises Python repr-style dict/list strings (single quotes, None/True/False)
-// into valid JSON so they can be parsed with JSON.parse().
+// Sanitises Python repr-style dict/list strings into valid JSON.
+//
+// A blind '-to-" replace breaks the moment a value contains an apostrophe:
+// Python's repr() switches a string's *own* delimiter to " when the string
+// contains a ' (e.g. character names like "Ellis Boyd 'Red' Redding" are
+// repr'd with double quotes precisely so the inner 's don't need escaping).
+// Globally swapping every ' for " then mangles that nesting. So instead of a
+// regex we scan char-by-char, track whether we're inside a string and which
+// quote character opened it, and only touch None/True/False outside strings.
 export function sanitiseRepr(raw: string): string {
-  return raw
-    .replace(/'/g, '"')
-    .replace(/\bNone\b/g, 'null')
-    .replace(/\bTrue\b/g, 'true')
-    .replace(/\bFalse\b/g, 'false')
-    .replace(/,\s*}/g, '}')
-    .replace(/,\s*]/g, ']');
+  let out = '';
+  let structural = '';
+  let i = 0;
+
+  const flushStructural = () => {
+    out += structural.replace(/\bNone\b/g, 'null').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false');
+    structural = '';
+  };
+
+  while (i < raw.length) {
+    const ch = raw[i];
+
+    if (ch === "'" || ch === '"') {
+      flushStructural();
+      const quote = ch;
+      let value = '';
+      i++;
+      while (i < raw.length) {
+        const c = raw[i];
+        if (c === '\\' && i + 1 < raw.length) {
+          value += raw[i + 1];
+          i += 2;
+          continue;
+        }
+        if (c === quote) {
+          i++;
+          break;
+        }
+        value += c;
+        i++;
+      }
+      out += JSON.stringify(value);
+      continue;
+    }
+
+    structural += ch;
+    i++;
+  }
+  flushStructural();
+
+  return out.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
 }
 
 export function parseJsonColumn(value: string): unknown[] {
