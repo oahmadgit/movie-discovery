@@ -44,8 +44,7 @@ export class SimilarityService {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    // Every Movie-shaped API response includes `genres` (list, search); the
-    // client's MovieCard relies on it unconditionally, so this must too.
+    // MovieCard on the client assumes every result has `genres`
     const genresByMovie = this.genresForMovies(results.map((r) => r.id));
     return results.map((r) => ({ ...r, genres: genresByMovie.get(r.id) ?? [] }));
   }

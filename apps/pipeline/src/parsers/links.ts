@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'csv-parse/sync';
 
-// links.csv columns: movieId (the ratings file's own id scheme), imdbId,
-// tmdbId (the primary id used everywhere else in the dataset; sometimes blank)
+// Maps the ratings file's own movie id scheme to the primary id used everywhere else.
 export type LinksMap = Map<number, number>;
 
 export function buildLinksMap(rows: Array<{ movieId: string; tmdbId: string }>): LinksMap {

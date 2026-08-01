@@ -20,10 +20,6 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-  // better-sqlite3 opens the file synchronously in its constructor, so a bad
-  // path throws here rather than on the first query. Degrade to a 500 on every
-  // /api/* route instead of letting app creation itself throw — callers that
-  // already handle HTTP error responses shouldn't also need to catch createApp().
   try {
     const db = options.db ?? createDb(options.dbPath);
     app.use('/api/movies', moviesRouter(db));

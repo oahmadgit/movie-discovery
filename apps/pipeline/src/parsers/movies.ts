@@ -3,8 +3,7 @@ import { parse } from 'csv-parse/sync';
 import JSON5 from 'json5';
 import { MovieRowSchema, type MovieRow } from '../validators/schemas.js';
 
-// Normalises the loosely-JSON literal syntax used by the genres/cast/crew/
-// keywords columns so JSON5 can parse them.
+// Normalises the loosely-JSON syntax used by the genres/cast/crew/keywords columns so JSON5 can parse them.
 const LITERAL_KEYWORDS: readonly [literal: string, json: string][] = [
   ['None', 'null'],
   ['True', 'true'],
@@ -67,8 +66,6 @@ export interface ParsedMovie extends MovieRow {
   genres: { id: number; name: string }[];
 }
 
-// csv-parse yields '' for empty cells; z.coerce.number() would treat '' as 0,
-// so blank cells must become undefined before validation.
 function cleanRow(row: Record<string, string>): Record<string, string | undefined> {
   const cleaned: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(row)) {

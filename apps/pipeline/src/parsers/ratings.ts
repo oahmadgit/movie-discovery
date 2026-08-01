@@ -9,9 +9,7 @@ export interface RatingRow {
   timestamp: number;
 }
 
-// ratings_small.csv's movieId uses a different id scheme than the rest of
-// the dataset — it must be translated via the links.csv-derived map before
-// it can reference movies(id).
+// movieId here uses ratings' own id scheme, translated via linksMap before it can reference movies(id).
 export function translateRating(
   row: { userId: string; movieId: string; rating: string; timestamp: string },
   linksMap: LinksMap

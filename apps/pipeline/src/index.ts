@@ -154,7 +154,7 @@ function main(): void {
     const filesHash = computeFilesHash(Object.values(FILES));
 
     if (hasUnchangedDataset(db, filesHash)) {
-      logger.info('Dataset unchanged since last run — skipping ingestion.');
+      logger.info('Dataset unchanged since last run skipping ingestion.');
       return;
     }
 

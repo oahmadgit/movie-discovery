@@ -11,8 +11,7 @@ export class SearchService {
   search(query: string, limit = 20): unknown[] {
     if (!query.trim()) return [];
 
-    // Strip FTS5 syntax characters (", *, -, (, ), :, ^) so user input can't
-    // be interpreted as query operators — this is a search box, not a query language.
+    // Strip FTS5 operator syntax so user input can't be read as a query language.
     const sanitised = query.replace(/["*\-():^]/g, ' ').trim().replace(/\s+/g, ' ');
     if (!sanitised) return [];
 
@@ -31,8 +30,7 @@ export class SearchService {
     return rows.map((row) => ({ ...row, genres: genresByMovie.get(row.id) ?? [] }));
   }
 
-  // Mirrors MovieService's batch genre lookup — kept local rather than shared
-  // since the two services intentionally have no other coupling.
+  // Duplicated from MovieService intentionally
   private genresForMovies(ids: number[]): Map<number, { genre_id: number; name: string }[]> {
     const map = new Map<number, { genre_id: number; name: string }[]>();
     if (ids.length === 0) return map;
