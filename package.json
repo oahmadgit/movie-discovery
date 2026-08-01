@@ -1,0 +1,14 @@
+{
+  "name": "movie-discovery",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "pipeline": "npm run start --workspace=apps/pipeline",
+    "api": "npm run dev --workspace=apps/api",
+    "client": "npm run dev --workspace=apps/client",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}
