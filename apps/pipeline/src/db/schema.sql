@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS movies (
-  id                INTEGER PRIMARY KEY,   -- TMDB id
+  id                INTEGER PRIMARY KEY,   -- primary id used throughout the source dataset
   imdb_id           TEXT,
   title             TEXT NOT NULL,
   overview          TEXT,

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import type Database from 'better-sqlite3';
+import { logger } from './logger.js';
 import { createDb } from './db/connection.js';
 import { moviesRouter } from './routes/movies.js';
 import { searchRouter } from './routes/search.js';
@@ -29,7 +30,7 @@ export function createApp(options: CreateAppOptions = {}) {
     app.use('/api/search', searchRouter(db));
     app.use('/api/analytics', analyticsRouter(db));
   } catch (err) {
-    console.error('Failed to open database:', err);
+    logger.error({ err }, 'Failed to open database');
     app.use('/api', (_req, res) => res.status(500).json({ error: 'Internal server error' }));
   }
 
