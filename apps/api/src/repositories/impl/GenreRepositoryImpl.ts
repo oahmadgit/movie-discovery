@@ -38,4 +38,9 @@ export class GenreRepositoryImpl implements GenreRepository {
     }
     return map;
   }
+
+  findDistinctNames(): string[] {
+    const rows = this.db.prepare('SELECT DISTINCT name FROM genres ORDER BY name').all() as { name: string }[];
+    return rows.map((r) => r.name);
+  }
 }

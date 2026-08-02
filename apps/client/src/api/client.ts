@@ -90,4 +90,5 @@ export const api = {
   similar: (id: number) => apiFetch<SimilarMovie[]>(`/api/movies/${id}/similar`),
   search: (q: string) => apiFetch<Movie[]>('/api/search', { q }),
   analytics: () => apiFetch<GenreAnalytics[]>('/api/analytics/top-genres'),
+  genres: () => apiFetch<string[]>('/api/genres'),
 };

@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useMovies } from '../hooks/useMovies';
 import { useSearch } from '../hooks/useSearch';
 import { MovieGrid } from '../components/MovieGrid';
-import { SearchBar } from '../components/SearchBar';
+import { AppHeader } from '../components/AppHeader';
 import { FilterPanel } from '../components/FilterPanel';
 import { Pagination } from '../components/Pagination';
 
@@ -20,15 +20,16 @@ export function BrowsePage() {
 
   return (
     <div className="browse-page">
-      <header>
-        <h1>🎬 Movie Discovery</h1>
-        <SearchBar />
-      </header>
+      <AppHeader />
       <div className="browse-layout">
-        {!isSearching && <FilterPanel />}
+        <FilterPanel disabled={isSearching} />
         <main>
-          {isLoading && <p>Loading...</p>}
-          {isError && <p role="alert">{(error as Error).message}</p>}
+          {isLoading && <p className="status-message">Loading...</p>}
+          {isError && (
+            <p className="status-message" role="alert">
+              {(error as Error).message}
+            </p>
+          )}
 
           {isSearching && searchQuery.data && (
             <>

@@ -7,6 +7,7 @@ import { createRepositories } from './repositories/index.js';
 import { moviesRouter } from './routes/movies.js';
 import { searchRouter } from './routes/search.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { genresRouter } from './routes/genres.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 export interface CreateAppOptions {
@@ -26,6 +27,7 @@ export function createApp(options: CreateAppOptions = {}) {
     app.use('/api/movies', moviesRouter(repos));
     app.use('/api/search', searchRouter(repos));
     app.use('/api/analytics', analyticsRouter(repos));
+    app.use('/api/genres', genresRouter(repos));
   } catch (err) {
     logger.error({ err }, 'Failed to open database');
     app.use('/api', (_req, res) => res.status(500).json({ error: 'Internal server error' }));
