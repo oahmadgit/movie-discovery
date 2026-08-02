@@ -1,64 +1,60 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'csv-parse/sync';
+import JSON5 from 'json5';
 import { MovieRowSchema, type MovieRow } from '../validators/schemas.js';
 
-// Sanitises Python repr-style dict/list strings into valid JSON.
-//
-// A blind '-to-" replace breaks the moment a value contains an apostrophe:
-// Python's repr() switches a string's *own* delimiter to " when the string
-// contains a ' (e.g. character names like "Ellis Boyd 'Red' Redding" are
-// repr'd with double quotes precisely so the inner 's don't need escaping).
-// Globally swapping every ' for " then mangles that nesting. So instead of a
-// regex we scan char-by-char, track whether we're inside a string and which
-// quote character opened it, and only touch None/True/False outside strings.
-export function sanitiseRepr(raw: string): string {
-  let out = '';
-  let structural = '';
-  let i = 0;
+// Normalises the loosely-JSON syntax used by the genres/cast/crew/keywords columns so JSON5 can parse them.
+const LITERAL_KEYWORDS: readonly [literal: string, json: string][] = [
+  ['None', 'null'],
+  ['True', 'true'],
+  ['False', 'false'],
+];
 
-  const flushStructural = () => {
-    out += structural.replace(/\bNone\b/g, 'null').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false');
-    structural = '';
-  };
+export function normalizeLooseJson(raw: string): string {
+  let out = '';
+  let i = 0;
 
   while (i < raw.length) {
     const ch = raw[i];
 
     if (ch === "'" || ch === '"') {
-      flushStructural();
       const quote = ch;
-      let value = '';
+      out += ch;
       i++;
       while (i < raw.length) {
         const c = raw[i];
-        if (c === '\\' && i + 1 < raw.length) {
-          value += raw[i + 1];
-          i += 2;
+        out += c;
+        i++;
+        if (c === '\\' && i < raw.length) {
+          out += raw[i];
+          i++;
           continue;
         }
-        if (c === quote) {
-          i++;
-          break;
-        }
-        value += c;
-        i++;
+        if (c === quote) break;
       }
-      out += JSON.stringify(value);
       continue;
     }
 
-    structural += ch;
+    const keyword = LITERAL_KEYWORDS.find(
+      ([literal]) => raw.startsWith(literal, i) && !/\w/.test(raw[i + literal.length] ?? '')
+    );
+    if (keyword) {
+      out += keyword[1];
+      i += keyword[0].length;
+      continue;
+    }
+
+    out += ch;
     i++;
   }
-  flushStructural();
 
-  return out.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+  return out;
 }
 
 export function parseJsonColumn(value: string): unknown[] {
   if (!value || value === '[]') return [];
   try {
-    return JSON.parse(sanitiseRepr(value)) as unknown[];
+    return JSON5.parse(normalizeLooseJson(value)) as unknown[];
   } catch {
     return [];
   }
@@ -70,8 +66,6 @@ export interface ParsedMovie extends MovieRow {
   genres: { id: number; name: string }[];
 }
 
-// csv-parse yields '' for empty cells; z.coerce.number() would treat '' as 0,
-// so blank cells must become undefined before validation.
 function cleanRow(row: Record<string, string>): Record<string, string | undefined> {
   const cleaned: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(row)) {

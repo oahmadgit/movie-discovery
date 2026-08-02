@@ -17,11 +17,20 @@ export function SearchBar() {
   }, [value]);
 
   return (
-    <input
-      type="search"
-      placeholder="Search movies..."
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-    />
+    <div className="search-bar">
+      <svg className="search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M21 20.3l-5.4-5.4a7.5 7.5 0 1 0-1.4 1.4l5.4 5.4zM4.5 10.5a6 6 0 1 1 12 0 6 6 0 0 1-12 0z"
+        />
+      </svg>
+      <input
+        type="search"
+        placeholder="Search movies by title or overview…"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        aria-label="Search movies"
+      />
+    </div>
   );
 }

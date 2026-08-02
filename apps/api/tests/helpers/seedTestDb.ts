@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Reuses the pipeline's schema so the in-memory test DB matches production shape.
 const SCHEMA_PATH = path.resolve(__dirname, '../../../pipeline/src/db/schema.sql');
 
 export function seedTestDb(db: Database.Database) {
@@ -62,7 +61,5 @@ export function seedTestDb(db: Database.Database) {
   db.prepare(`INSERT INTO keywords (movie_id, keyword_id, name) VALUES (278, 1, 'prison')`).run();
   db.prepare(`INSERT INTO ratings (user_id, movie_id, rating, timestamp) VALUES (1, 278, 5.0, 1000)`).run();
 
-  // movies_fts is an external-content table (content='movies') — it doesn't
-  // auto-populate from plain INSERTs into movies, so rebuild the index explicitly.
   db.exec(`INSERT INTO movies_fts(movies_fts) VALUES('rebuild')`);
 }

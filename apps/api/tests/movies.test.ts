@@ -18,11 +18,17 @@ describe('GET /api/movies', () => {
     expect(res.body.pagination).toEqual({ page: 1, limit: 20, total: 3, totalPages: 1 });
   });
 
-  it('filters by genre', async () => {
-    const res = await request(app).get('/api/movies?genre=Crime');
+  it('filters by a single genre', async () => {
+    const res = await request(app).get('/api/movies?genres=Crime');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     res.body.data.forEach((m: any) => expect(m.genres.some((g: any) => g.name === 'Crime')).toBe(true));
+  });
+
+  it('filters by multiple genres with OR semantics', async () => {
+    const res = await request(app).get('/api/movies?genres=Crime,Drama');
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((m: any) => m.id).sort()).toEqual([238, 278, 550]);
   });
 
   it('filters by year range', async () => {
@@ -31,10 +37,10 @@ describe('GET /api/movies', () => {
     expect(res.body.data.map((m: any) => m.id)).toEqual([278]);
   });
 
-  it('filters by minVotes', async () => {
-    const res = await request(app).get('/api/movies?minVotes=25000');
+  it('filters by minRating', async () => {
+    const res = await request(app).get('/api/movies?minRating=8.5');
     expect(res.status).toBe(200);
-    expect(res.body.data.map((m: any) => m.id)).toEqual([550]);
+    expect(res.body.data.map((m: any) => m.id).sort()).toEqual([238, 278]);
   });
 
   it('sorts by vote_average descending', async () => {

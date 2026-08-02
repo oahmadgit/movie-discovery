@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS movies (
-  id                INTEGER PRIMARY KEY,   -- TMDB id
+  id                INTEGER PRIMARY KEY,   -- primary id used throughout the source dataset
   imdb_id           TEXT,
   title             TEXT NOT NULL,
   overview          TEXT,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS cast_members (
   person_id  INTEGER,
   name       TEXT,
   character  TEXT,
-  "order"    INTEGER,               -- billing order
+  "order"    INTEGER,
   PRIMARY KEY (movie_id, person_id)
 );
 
@@ -69,7 +69,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS movies_fts USING fts5(
   content_rowid='id'
 );
 
--- Indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_movies_year  ON movies(release_year);
 CREATE INDEX IF NOT EXISTS idx_movies_vote  ON movies(vote_average);
 CREATE INDEX IF NOT EXISTS idx_movies_rev   ON movies(revenue);

@@ -9,18 +9,17 @@ export interface RatingRow {
   timestamp: number;
 }
 
-// ratings_small.csv's movieId is a MovieLens id, not a TMDB id — must be
-// translated via the links.csv-derived map before it can reference movies(id).
+// movieId here uses ratings' own id scheme, translated via linksMap before it can reference movies(id).
 export function translateRating(
   row: { userId: string; movieId: string; rating: string; timestamp: string },
   linksMap: LinksMap
 ): RatingRow | null {
-  const tmdbId = linksMap.get(Number(row.movieId));
-  if (tmdbId === undefined) return null;
+  const primaryId = linksMap.get(Number(row.movieId));
+  if (primaryId === undefined) return null;
 
   return {
     user_id: Number(row.userId),
-    movie_id: tmdbId,
+    movie_id: primaryId,
     rating: Number(row.rating),
     timestamp: Number(row.timestamp),
   };

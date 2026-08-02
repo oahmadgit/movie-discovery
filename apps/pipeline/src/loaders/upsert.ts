@@ -30,8 +30,7 @@ export function upsertMovie(
   `).run(nullifyUndefined(row));
 }
 
-// better-sqlite3 rejects `undefined` bind params — optional MovieRow fields
-// (popularity/runtime/status/original_language) may be present-but-undefined.
+// better-sqlite3 rejects `undefined` bind params, so optional fields need coercing to null first.
 function nullifyUndefined<T extends Record<string, unknown>>(obj: T): T {
   const out = { ...obj } as Record<string, unknown>;
   for (const key of Object.keys(out)) {

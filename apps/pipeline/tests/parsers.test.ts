@@ -1,25 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { sanitiseRepr, parseJsonColumn } from '../src/parsers/movies.js';
+import JSON5 from 'json5';
+import { normalizeLooseJson, parseJsonColumn } from '../src/parsers/movies.js';
 
-describe('sanitiseRepr', () => {
-  it('converts single quotes to double quotes', () => {
-    expect(sanitiseRepr("{'id': 1}")).toBe('{"id": 1}');
+describe('normalizeLooseJson', () => {
+  it('leaves single-quoted values parseable by JSON5', () => {
+    expect(JSON5.parse(normalizeLooseJson("{'id': 1}"))).toEqual({ id: 1 });
   });
 
-  it('converts Python None to null', () => {
-    expect(sanitiseRepr("{'budget': None}")).toBe('{"budget": null}');
+  it('converts the None literal to null', () => {
+    expect(JSON5.parse(normalizeLooseJson("{'budget': None}"))).toEqual({ budget: null });
   });
 
-  it('converts Python True/False to boolean literals', () => {
-    expect(sanitiseRepr("{'adult': False}")).toBe('{"adult": false}');
+  it('converts True/False literals to boolean literals', () => {
+    expect(JSON5.parse(normalizeLooseJson("{'adult': False}"))).toEqual({ adult: false });
   });
 
-  it('preserves apostrophes inside a double-quoted repr value', () => {
-    // Python's repr() switches a string's own delimiter to " when the value
-    // contains a ' — e.g. character names like "Ellis Boyd 'Red' Redding".
-    // A blind '-to-" replace would mangle the inner quotes; this must not.
+  it('preserves apostrophes inside a double-quoted value', () => {
     const raw = `{'character': "Ellis Boyd 'Red' Redding"}`;
-    expect(JSON.parse(sanitiseRepr(raw))).toEqual({ character: "Ellis Boyd 'Red' Redding" });
+    expect(JSON5.parse(normalizeLooseJson(raw))).toEqual({ character: "Ellis Boyd 'Red' Redding" });
+  });
+
+  it('does not mistake None/True/False appearing inside a string for keywords', () => {
+    const raw = `{'title': 'None the Wiser, True to Life'}`;
+    expect(JSON5.parse(normalizeLooseJson(raw))).toEqual({ title: 'None the Wiser, True to Life' });
   });
 });
 

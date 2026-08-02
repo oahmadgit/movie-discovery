@@ -1,16 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'csv-parse/sync';
 
-// links.csv columns: movieId (MovieLens id), imdbId, tmdbId (TMDB id, sometimes blank)
+// Maps the ratings file's own movie id scheme to the primary id used everywhere else.
 export type LinksMap = Map<number, number>;
 
 export function buildLinksMap(rows: Array<{ movieId: string; tmdbId: string }>): LinksMap {
   const map: LinksMap = new Map();
   for (const row of rows) {
-    const movieLensId = Number(row.movieId);
-    const tmdbId = Number(row.tmdbId);
-    if (Number.isFinite(movieLensId) && Number.isFinite(tmdbId) && row.tmdbId !== '') {
-      map.set(movieLensId, tmdbId);
+    const ratingsId = Number(row.movieId);
+    const primaryId = Number(row.tmdbId);
+    if (Number.isFinite(ratingsId) && Number.isFinite(primaryId) && row.tmdbId !== '') {
+      map.set(ratingsId, primaryId);
     }
   }
   return map;

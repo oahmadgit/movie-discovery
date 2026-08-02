@@ -1,4 +1,7 @@
-import type Database from 'better-sqlite3';
+import type { SimilarMovie } from '../types/domain.js';
+import type { MovieRepository } from '../repositories/MovieRepository.js';
+import type { GenreRepository } from '../repositories/GenreRepository.js';
+import type { KeywordRepository } from '../repositories/KeywordRepository.js';
 
 function jaccardScore(a: Set<number>, b: Set<number>, weight: number): number {
   const intersection = [...a].filter((x) => b.has(x)).length;
@@ -7,42 +10,36 @@ function jaccardScore(a: Set<number>, b: Set<number>, weight: number): number {
 }
 
 export class SimilarityService {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private movies: MovieRepository,
+    private genres: GenreRepository,
+    private keywords: KeywordRepository
+  ) {}
 
-  private genreIds(movieId: number): Set<number> {
-    const rows = this.db.prepare('SELECT genre_id FROM genres WHERE movie_id = ?').all(movieId) as { genre_id: number }[];
-    return new Set(rows.map((r) => r.genre_id));
-  }
-
-  private keywordIds(movieId: number): Set<number> {
-    const rows = this.db.prepare('SELECT keyword_id FROM keywords WHERE movie_id = ?').all(movieId) as { keyword_id: number }[];
-    return new Set(rows.map((r) => r.keyword_id));
-  }
-
-  // TODO(api): implement weighted genre+keyword Jaccard similarity per IMPLEMENTATION_PLAN.md #5.
-  getSimilar(movieId: number, limit = 10): unknown[] {
-    const sourceGenres = this.genreIds(movieId);
-    const sourceKeywords = this.keywordIds(movieId);
+  getSimilar(movieId: number, limit = 10): SimilarMovie[] {
+    const sourceGenres = this.genres.findGenreIdsByMovieIds([movieId]).get(movieId) ?? new Set<number>();
+    const sourceKeywords = this.keywords.findKeywordIdsByMovieIds([movieId]).get(movieId) ?? new Set<number>();
     if (sourceGenres.size === 0 && sourceKeywords.size === 0) return [];
 
-    const candidates = this.db
-      .prepare(
-        `SELECT DISTINCT m.* FROM movies m
-         JOIN genres g ON g.movie_id = m.id
-         WHERE g.genre_id IN (${[...sourceGenres].map(() => '?').join(',') || 'NULL'})
-         AND m.id != ?`
-      )
-      .all(...sourceGenres, movieId) as { id: number }[];
+    const candidates = this.movies.findByGenreIds([...sourceGenres], movieId);
 
-    return candidates
+    const candidateIds = candidates.map((c) => c.id);
+    const candidateGenres = this.genres.findGenreIdsByMovieIds(candidateIds);
+    const candidateKeywords = this.keywords.findKeywordIdsByMovieIds(candidateIds);
+
+    const results = candidates
       .map((c) => ({
         ...c,
         score:
-          jaccardScore(sourceGenres, this.genreIds(c.id), 0.6) +
-          jaccardScore(sourceKeywords, this.keywordIds(c.id), 0.4),
+          jaccardScore(sourceGenres, candidateGenres.get(c.id) ?? new Set(), 0.6) +
+          jaccardScore(sourceKeywords, candidateKeywords.get(c.id) ?? new Set(), 0.4),
       }))
       .filter((c) => c.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
+
+    // MovieCard on the client assumes every result has `genres`
+    const genresByMovie = this.genres.findByMovieIds(results.map((r) => r.id));
+    return results.map((r) => ({ ...r, genres: genresByMovie.get(r.id) ?? [] }));
   }
 }
