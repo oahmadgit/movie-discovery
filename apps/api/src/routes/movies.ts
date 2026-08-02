@@ -1,15 +1,15 @@
 import { Router } from 'express';
-import type Database from 'better-sqlite3';
+import type { Repositories } from '../repositories/index.js';
 import { MovieService } from '../services/MovieService.js';
 import { SimilarityService } from '../services/SimilarityService.js';
 import { validateParams, validateQuery } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { IdParamSchema, MoviesQuerySchema, type MoviesQuery } from '../validators/schemas.js';
 
-export function moviesRouter(db: Database.Database): Router {
+export function moviesRouter(repos: Repositories): Router {
   const router = Router();
-  const movieService = new MovieService(db);
-  const similarityService = new SimilarityService(db);
+  const movieService = new MovieService(repos.movies, repos.genres, repos.keywords, repos.castCrew, repos.ratings);
+  const similarityService = new SimilarityService(repos.movies, repos.genres, repos.keywords);
 
   router.get(
     '/',

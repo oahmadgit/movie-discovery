@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import type Database from 'better-sqlite3';
+import type { Repositories } from '../repositories/index.js';
 import { SearchService } from '../services/SearchService.js';
 import { validateQuery } from '../middleware/validate.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { SearchQuerySchema, type SearchQuery } from '../validators/schemas.js';
 
-export function searchRouter(db: Database.Database): Router {
+export function searchRouter(repos: Repositories): Router {
   const router = Router();
-  const searchService = new SearchService(db);
+  const searchService = new SearchService(repos.movies, repos.genres);
 
   router.get(
     '/',
