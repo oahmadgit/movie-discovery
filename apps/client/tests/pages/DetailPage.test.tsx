@@ -68,4 +68,28 @@ describe('DetailPage', () => {
     await waitFor(() => expect(screen.getByText(/Back to Browse/)).toBeInTheDocument());
     expect(screen.getByText(/Back to Browse/)).toHaveAttribute('href', '/');
   });
+
+  it('renders a real poster image in the hero when poster_path is available', async () => {
+    mockedMovie.mockResolvedValue(makeMovieDetail({ poster_path: '/abc123.jpg' }));
+    renderDetail();
+
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'The Shawshank Redemption poster' })).toHaveAttribute(
+        'src',
+        'https://image.tmdb.org/t/p/w342/abc123.jpg'
+      )
+    );
+  });
+
+  it('renders the poster placeholder in the hero when poster_path is null', async () => {
+    mockedMovie.mockResolvedValue(makeMovieDetail({ poster_path: null }));
+    renderDetail();
+
+    await waitFor(() =>
+      expect(screen.getByText(/The Shawshank Redemption/).closest('.detail-page')).toBeInTheDocument()
+    );
+    const hero = document.querySelector('.detail-poster');
+    expect(hero?.querySelector('svg')).toBeInTheDocument();
+    expect(hero?.querySelector('img')).not.toBeInTheDocument();
+  });
 });

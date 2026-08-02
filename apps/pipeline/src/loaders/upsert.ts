@@ -10,9 +10,9 @@ export function upsertMovie(
 ) {
   db.prepare(`
     INSERT INTO movies (id, imdb_id, title, overview, tagline, release_date, release_year,
-      budget, revenue, runtime, vote_average, vote_count, popularity, status, original_language)
+      budget, revenue, runtime, vote_average, vote_count, popularity, status, original_language, poster_path)
     VALUES (@id, @imdb_id, @title, @overview, @tagline, @release_date, @release_year,
-      @budget, @revenue, @runtime, @vote_average, @vote_count, @popularity, @status, @original_language)
+      @budget, @revenue, @runtime, @vote_average, @vote_count, @popularity, @status, @original_language, @poster_path)
     ON CONFLICT(id) DO UPDATE SET
       title             = excluded.title,
       overview          = excluded.overview,
@@ -26,7 +26,8 @@ export function upsertMovie(
       vote_count        = excluded.vote_count,
       popularity        = excluded.popularity,
       status            = excluded.status,
-      original_language = excluded.original_language
+      original_language = excluded.original_language,
+      poster_path       = excluded.poster_path
   `).run(nullifyUndefined(row));
 }
 

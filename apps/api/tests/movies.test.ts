@@ -18,6 +18,14 @@ describe('GET /api/movies', () => {
     expect(res.body.pagination).toEqual({ page: 1, limit: 20, total: 3, totalPages: 1 });
   });
 
+  it('includes poster_path on each movie, null when not available', async () => {
+    const res = await request(app).get('/api/movies');
+    const shawshank = res.body.data.find((m: any) => m.id === 278);
+    const godfather = res.body.data.find((m: any) => m.id === 238);
+    expect(shawshank.poster_path).toBe('/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg');
+    expect(godfather.poster_path).toBeNull();
+  });
+
   it('filters by a single genre', async () => {
     const res = await request(app).get('/api/movies?genres=Crime');
     expect(res.status).toBe(200);

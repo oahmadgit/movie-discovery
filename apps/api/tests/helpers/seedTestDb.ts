@@ -11,8 +11,8 @@ export function seedTestDb(db: Database.Database) {
   db.exec(readFileSync(SCHEMA_PATH, 'utf-8'));
 
   const insertMovie = db.prepare(
-    `INSERT INTO movies (id, title, overview, tagline, release_date, release_year, vote_average, vote_count)
-     VALUES (@id, @title, @overview, @tagline, @release_date, @release_year, @vote_average, @vote_count)`
+    `INSERT INTO movies (id, title, overview, tagline, release_date, release_year, vote_average, vote_count, poster_path)
+     VALUES (@id, @title, @overview, @tagline, @release_date, @release_year, @vote_average, @vote_count, @poster_path)`
   );
 
   insertMovie.run({
@@ -24,6 +24,7 @@ export function seedTestDb(db: Database.Database) {
     release_year: 1994,
     vote_average: 8.7,
     vote_count: 21000,
+    poster_path: '/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',
   });
   insertMovie.run({
     id: 238,
@@ -34,6 +35,7 @@ export function seedTestDb(db: Database.Database) {
     release_year: 1972,
     vote_average: 8.7,
     vote_count: 16000,
+    poster_path: null,
   });
   insertMovie.run({
     id: 550,
@@ -44,6 +46,7 @@ export function seedTestDb(db: Database.Database) {
     release_year: 1999,
     vote_average: 8.4,
     vote_count: 26000,
+    poster_path: null,
   });
 
   const insertGenre = db.prepare('INSERT INTO genres (movie_id, genre_id, name) VALUES (?, ?, ?)');

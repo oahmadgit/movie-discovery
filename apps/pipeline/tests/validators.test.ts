@@ -28,4 +28,20 @@ describe('MovieRowSchema', () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.budget).toBeNull();
   });
+
+  it('accepts and preserves poster_path when present', () => {
+    const result = MovieRowSchema.safeParse({
+      id: 278,
+      title: 'The Shawshank Redemption',
+      poster_path: '/rhIRbceoE9lR4veEXuwCC2wARtG.jpg',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.poster_path).toBe('/rhIRbceoE9lR4veEXuwCC2wARtG.jpg');
+  });
+
+  it('leaves poster_path undefined when absent', () => {
+    const result = MovieRowSchema.safeParse({ id: 278, title: 'The Shawshank Redemption' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.poster_path).toBeUndefined();
+  });
 });

@@ -6,7 +6,7 @@ import { CastList } from '../components/CastList';
 import { CrewList } from '../components/CrewList';
 import { KeywordList } from '../components/KeywordList';
 import { SimilarMovies } from '../components/SimilarMovies';
-import { PosterPlaceholder } from '../components/placeholders/PosterPlaceholder';
+import { Poster } from '../components/Poster';
 
 export function DetailPage() {
   const { id } = useParams();
@@ -38,7 +38,7 @@ export function DetailPage() {
             <main className="detail-main">
               <div className="detail-hero">
                 <div className="detail-poster">
-                  <PosterPlaceholder />
+                  <Poster posterPath={movie.poster_path} title={movie.title} />
                 </div>
 
                 <div className="detail-hero-info">
