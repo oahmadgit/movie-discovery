@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS movies (
   vote_count        INTEGER,
   popularity        REAL,
   status            TEXT,
-  original_language TEXT
+  original_language TEXT,
+  poster_path       TEXT                   -- relative path; resolve against the image CDN base URL client-side
 );
 
 CREATE TABLE IF NOT EXISTS genres (

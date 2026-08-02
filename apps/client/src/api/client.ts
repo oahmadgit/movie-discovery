@@ -21,6 +21,7 @@ export interface Movie {
   popularity: number | null;
   status: string | null;
   original_language: string | null;
+  poster_path: string | null;
   genres: Genre[];
 }
 

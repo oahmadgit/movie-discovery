@@ -20,6 +20,7 @@ export interface MovieRow {
   vote_average: number | null;
   vote_count: number | null;
   revenue?: number | null;
+  poster_path: string | null;
   [key: string]: unknown;
 }
 

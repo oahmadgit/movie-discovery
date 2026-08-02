@@ -40,4 +40,17 @@ describe('MovieCard', () => {
     const { container } = renderWithProviders(<MovieCard movie={makeMovie({ genres: [] })} />);
     expect(container.querySelector('.genre-tags')).not.toBeInTheDocument();
   });
+
+  it('renders a real poster image when poster_path is available', () => {
+    renderWithProviders(<MovieCard movie={makeMovie({ poster_path: '/abc123.jpg' })} />);
+    expect(screen.getByRole('img', { name: /poster/ })).toHaveAttribute(
+      'src',
+      'https://image.tmdb.org/t/p/w342/abc123.jpg'
+    );
+  });
+
+  it('renders the placeholder when poster_path is null', () => {
+    renderWithProviders(<MovieCard movie={makeMovie({ poster_path: null })} />);
+    expect(screen.getByRole('img', { name: 'No poster available' })).toBeInTheDocument();
+  });
 });

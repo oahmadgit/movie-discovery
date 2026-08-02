@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import type { Movie } from '../api/client';
-import { PosterPlaceholder } from './placeholders/PosterPlaceholder';
+import { Poster } from './Poster';
 
 export function MovieCard({ movie }: { movie: Movie }) {
   return (
     <Link to={`/movies/${movie.id}`} className="movie-card">
       <div className="movie-card-poster">
-        <PosterPlaceholder />
+        <Poster posterPath={movie.poster_path} title={movie.title} />
       </div>
       <div className="movie-card-body">
         <h3>{movie.title}</h3>

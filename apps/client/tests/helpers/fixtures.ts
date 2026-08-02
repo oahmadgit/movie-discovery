@@ -17,6 +17,7 @@ export function makeMovie(overrides: Partial<Movie> = {}): Movie {
     popularity: 51.6,
     status: 'Released',
     original_language: 'en',
+    poster_path: '/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',
     genres: [
       { genre_id: 18, name: 'Drama' },
       { genre_id: 80, name: 'Crime' },

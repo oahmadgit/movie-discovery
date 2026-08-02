@@ -125,23 +125,3 @@ All endpoints are mounted under `/api`.
 Invalid query params or ids return `400`; a missing movie returns `404`; an
 unreachable database degrades every `/api/*` route to `500` rather than
 crashing the process.
-
-## Known dataset quirks handled by the pipeline
-
-- The `genres`, `cast`, `crew`, and `keywords` columns hold a loosely-JSON
-  literal syntax, not strict JSON — string values may use single *or*
-  double quotes, lists/objects may have a trailing comma, and boolean/null
-  values are capitalised (`None`/`True`/`False`) instead of lowercase. The
-  pipeline normalises just the capitalised literals and hands the rest to
-  [JSON5](https://www.npmjs.com/package/json5), rather than doing a naive
-  quote-swap — a naive `'`→`"` regex breaks on values like `"Ellis Boyd
-  'Red' Redding"`, where the source data itself switches a string's
-  delimiter to `"` because the value contains a `'`.
-- `budget`/`revenue` of `0` are treated as missing data and stored as `NULL`,
-  not `$0`.
-- `ratings_small.csv`'s `movieId` column uses a different id scheme than the
-  rest of the dataset — it's translated via a `links.csv`-derived map before
-  being stored.
-- Rows with malformed data (bad literal syntax, non-numeric ids) are skipped
-  with a count in the pipeline's progress output, not treated as fatal
-  errors.

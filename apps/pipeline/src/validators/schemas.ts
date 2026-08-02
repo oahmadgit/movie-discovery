@@ -14,6 +14,7 @@ export const MovieRowSchema = z.object({
   popularity: z.coerce.number().optional(),
   status: z.string().optional(),
   original_language: z.string().optional(),
+  poster_path: z.string().optional(),
 });
 
 export type MovieRow = z.infer<typeof MovieRowSchema>;
