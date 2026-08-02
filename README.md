@@ -1,40 +1,58 @@
 # Movie Content Discovery Platform
 
-A three-layer movie discovery app: a CSV ingestion pipeline loads ~45K
-movies into SQLite, an Express API serves search/browse/similarity/analytics
-endpoints on top of it, and a React frontend lets you explore the catalog.
+A movie discovery app with three parts:
+
+1. A **pipeline** reads movie data from CSV files and loads it into a SQLite database.
+2. An **API** (Express) reads that database and serves it over HTTP.
+3. A **client** (React) calls the API and lets you browse, search, and view movie details.
 
 ```
-[raw CSVs] → pipeline (apps/pipeline) → database/movies.db
+[CSV files] → pipeline (apps/pipeline) → database/movies.db
                                                   │
-                                       Express API (apps/api)
+                                       API (apps/api)
                                                   │
-                                     React + Vite client (apps/client)
+                                     Client (apps/client)
 ```
 
-See [ADR.md](ADR.md) for the reasoning behind the stack, the similarity
-algorithm, and what would change at production scale.
+See [ADR.md](ADR.md) for why things were built this way, and what would
+need to change to support many more users.
 
 ## Stack
 
-- **Pipeline**: Node.js + TypeScript, `csv-parse`, `json5`, `zod`, `better-sqlite3`
+- **Pipeline**: Node.js + TypeScript, `csv-parse` (reads CSVs), `json5` (parses the loosely-formatted JSON in some columns), `zod` (validation), `better-sqlite3` (writes to SQLite)
 - **API**: Express.js, `better-sqlite3`, `zod`
-- **Database**: SQLite (single file, FTS5 for full-text search)
-- **Frontend**: React + Vite, React Router, TanStack Query
+- **Database**: SQLite — one file, with full-text search built in (FTS5)
+- **Frontend**: React + Vite, React Router, TanStack Query (data fetching/caching)
 - **Tests**: Vitest + Supertest
 
 ## Repository structure
 
 ```
 movie-discovery/
-├── data/                  # drop the source CSVs here (gitignored)
-├── database/              # movies.db is generated here by the pipeline
+├── data/                  # put the source CSVs here (not checked into git)
+├── database/              # movies.db is created here by the pipeline
 └── apps/
-    ├── pipeline/          # CSV → SQLite ingestion CLI
-    ├── api/                # Express REST API
-    ├── client/             # React + Vite frontend
-    └── shared/             # code shared across the Node apps (currently: the logger)
+    ├── pipeline/          # reads the CSVs and writes to SQLite
+    ├── api/                # Express API that reads from SQLite
+    ├── client/             # React frontend
+    └── shared/             # small bits of code shared by pipeline/api (currently just logging)
 ```
+
+Inside `apps/api/src`, data access follows a repository pattern:
+
+```
+repositories/
+├── MovieRepository.ts       # interface — what a movie repository can do
+├── GenreRepository.ts       # (one interface per data type)
+├── impl/
+│   └── MovieRepositoryImpl.ts   # the actual SQLite implementation
+└── index.ts                  # wires the implementations together
+```
+
+Services (`apps/api/src/services/`) contain the business logic and only
+talk to repositories through their interfaces — never to SQL directly.
+This keeps the SQL in one place and makes the services easy to test with
+a fake repository instead of a real database.
 
 ## Prerequisites
 
@@ -44,13 +62,14 @@ movie-discovery/
 
 ## Setup
 
-1. **Install dependencies** (npm workspaces — one install covers all three apps):
+1. **Install dependencies** (this is an npm workspaces project — one
+   install covers the pipeline, API, and client):
 
    ```bash
    npm install
    ```
 
-2. **Drop the dataset CSVs into `data/`**:
+2. **Put the dataset CSVs in `data/`**:
 
    ```
    data/
@@ -61,24 +80,25 @@ movie-discovery/
    └── ratings_small.csv
    ```
 
-3. **Run the ingestion pipeline**. This creates `database/movies.db`,
-   parses/validates every CSV, and reports what it skipped:
+3. **Run the pipeline.** This reads the CSVs, checks the data is valid,
+   and writes everything into `database/movies.db`:
 
    ```bash
    npm run pipeline
    ```
 
-   Expect ~25–50s. Re-running is idempotent — if the CSVs haven't changed
-   (by size/mtime), it skips ingestion entirely rather than re-processing
-   45K rows.
+   Takes about 25–50 seconds. If you run it again without changing the
+   CSVs, it skips the work instead of redoing it — it checks file size
+   and modified time to decide.
 
-4. **Start the API** (port 3001 by default):
+4. **Start the API** (runs on port 3001 by default):
 
    ```bash
    npm run api
    ```
 
-5. **Start the client** (port 5173 by default), in a separate terminal:
+5. **Start the client** (runs on port 5173 by default), in a separate
+   terminal:
 
    ```bash
    npm run client
@@ -88,15 +108,17 @@ movie-discovery/
 
 ### Environment variables
 
-The client reads `VITE_API_URL` (see `apps/client/.env.example`); it
-defaults to `http://localhost:3001` if unset, so no `.env` file is required
-for local development. The API reads `PORT` (defaults to `3001`).
+The client reads `VITE_API_URL` (see `apps/client/.env.example`). If it's
+not set, it defaults to `http://localhost:3001`, so you don't need a
+`.env` file for local development. The API reads `PORT` (defaults to
+`3001`).
 
-Both the pipeline and the API log via [`pino`](https://getpino.io). Both
-read `LOG_LEVEL` (defaults to `info`). The API prints structured JSON when
-`NODE_ENV=production`, and colourised pretty output otherwise; the pipeline
-prints colourised pretty output by default and switches to structured JSON
-when `LOG_FORMAT=json` is set (useful if something else is parsing its output).
+Both the pipeline and the API log using [`pino`](https://getpino.io), and
+both read `LOG_LEVEL` (defaults to `info`). By default the API prints
+colourised, human-readable logs; set `NODE_ENV=production` to make it
+print structured JSON instead (useful for log collectors). The pipeline
+works the other way around — pretty output by default, structured JSON
+if you set `LOG_FORMAT=json`.
 
 ## Running tests
 
@@ -104,11 +126,10 @@ when `LOG_FORMAT=json` is set (useful if something else is parsing its output).
 npm test
 ```
 
-Runs the pipeline and API test suites (Vitest) — 34 tests covering CSV
-normalisation, Zod validation, movie filtering/pagination, search, and
-failure conditions (bad DB path, malformed query params, FTS special
-characters). See `IMPLEMENTATION_PLAN.md` for what's deliberately *not*
-tested and why.
+This runs every workspace's test suite (Vitest): pipeline, API, shared,
+and client. It covers CSV parsing/validation, movie filtering and
+pagination, search, similarity, and the main UI flows (browsing,
+filtering, and viewing a movie's details).
 
 ## API reference
 
@@ -116,12 +137,17 @@ All endpoints are mounted under `/api`.
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/movies` | Paginated, filterable, sortable movie list. Query params: `page`, `limit` (max 100), `sort` (`title`\|`release_date`\|`vote_average`\|`revenue`), `order` (`asc`\|`desc`), `genre`, `yearFrom`, `yearTo`, `minVotes` |
-| `GET /api/movies/:id` | Full movie detail — genres, cast (top 20), crew (key roles), keywords, rating stats |
-| `GET /api/movies/:id/similar` | Up to 10 movies ranked by weighted genre + keyword Jaccard similarity |
-| `GET /api/search?q=` | Full-text search over title/overview/tagline (SQLite FTS5, BM25-ranked) |
-| `GET /api/analytics/top-genres` | Movie count / avg rating / avg revenue per genre, grouped by decade |
+| `GET /api/movies` | Paginated, filterable, sortable movie list. Query params: `page`, `limit` (max 100), `sort` (`title`\|`release_date`\|`vote_average`\|`revenue`), `order` (`asc`\|`desc`), `genres` (comma-separated, matches any), `yearFrom`, `yearTo`, `minRating` (0–10) |
+| `GET /api/movies/:id` | Full movie detail — genres, cast (top 20), crew (key roles), keywords, rating stats, poster image |
+| `GET /api/movies/:id/similar` | Up to 10 similar movies, ranked by shared genres and keywords |
+| `GET /api/search?q=` | Full-text search over title/overview/tagline, best matches first |
+| `GET /api/genres` | List of all genre names, used to build the genre filter in the UI |
+| `GET /api/analytics/top-genres` | Movie count / average rating / average revenue per genre, grouped by decade |
 
-Invalid query params or ids return `400`; a missing movie returns `404`; an
-unreachable database degrades every `/api/*` route to `500` rather than
-crashing the process.
+Invalid query params or ids return `400`. A movie that doesn't exist
+returns `404`. If the database can't be reached, every `/api/*` route
+returns `500` instead of crashing the server.
+
+Movie posters are served as a relative path (`poster_path`) that the
+client resolves against an image CDN; if a movie has no poster, the
+client shows a placeholder instead.
