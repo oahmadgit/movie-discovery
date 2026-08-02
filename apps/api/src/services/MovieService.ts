@@ -19,7 +19,7 @@ export class MovieService {
   ) {}
 
   list(query: MoviesQuery): { data: MovieListItem[]; pagination: Pagination } {
-    const filter = { genre: query.genre, yearFrom: query.yearFrom, yearTo: query.yearTo, minVotes: query.minVotes };
+    const filter = { genres: query.genres, yearFrom: query.yearFrom, yearTo: query.yearTo, minRating: query.minRating };
     const sort = { column: query.sort ?? 'title', direction: query.order ?? 'asc' } as const;
     const page = { limit: query.limit, offset: (query.page - 1) * query.limit };
 

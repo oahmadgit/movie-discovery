@@ -16,7 +16,7 @@ export function DetailPage() {
 
   return (
     <div className="detail-shell">
-      <AppHeader />
+      <AppHeader showSearch={false} />
 
       {isLoading && (
         <p className="status-message detail-status">Loading...</p>

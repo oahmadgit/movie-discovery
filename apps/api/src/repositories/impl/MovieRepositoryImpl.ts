@@ -13,9 +13,12 @@ function buildWhere(filter: MovieFilter): { where: string; params: Record<string
   const conditions: string[] = [];
   const params: Record<string, unknown> = {};
 
-  if (filter.genre) {
-    conditions.push('EXISTS (SELECT 1 FROM genres g WHERE g.movie_id = m.id AND LOWER(g.name) = LOWER(@genre))');
-    params.genre = filter.genre;
+  if (filter.genres && filter.genres.length > 0) {
+    filter.genres.forEach((genre, i) => {
+      params[`genre${i}`] = genre;
+    });
+    const placeholders = filter.genres.map((_, i) => `LOWER(@genre${i})`).join(',');
+    conditions.push(`EXISTS (SELECT 1 FROM genres g WHERE g.movie_id = m.id AND LOWER(g.name) IN (${placeholders}))`);
   }
   if (filter.yearFrom != null) {
     conditions.push('m.release_year >= @yearFrom');
@@ -25,9 +28,9 @@ function buildWhere(filter: MovieFilter): { where: string; params: Record<string
     conditions.push('m.release_year <= @yearTo');
     params.yearTo = filter.yearTo;
   }
-  if (filter.minVotes != null) {
-    conditions.push('m.vote_count >= @minVotes');
-    params.minVotes = filter.minVotes;
+  if (filter.minRating != null) {
+    conditions.push('m.vote_average >= @minRating');
+    params.minRating = filter.minRating;
   }
 
   return { where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', params };

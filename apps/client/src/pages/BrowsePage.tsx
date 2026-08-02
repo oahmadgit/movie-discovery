@@ -46,6 +46,7 @@ export function BrowsePage() {
               <Pagination
                 page={moviesQuery.data.pagination.page}
                 totalPages={moviesQuery.data.pagination.totalPages}
+                limit={moviesQuery.data.pagination.limit}
               />
             </>
           )}

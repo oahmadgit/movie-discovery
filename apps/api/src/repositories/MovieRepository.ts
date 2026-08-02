@@ -1,10 +1,10 @@
 import type { MovieRow } from '../types/domain.js';
 
 export interface MovieFilter {
-  genre?: string;
+  genres?: string[];
   yearFrom?: number;
   yearTo?: number;
-  minVotes?: number;
+  minRating?: number;
 }
 
 export interface MovieSort {
